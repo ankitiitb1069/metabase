@@ -99,7 +99,7 @@
 (defn- do-f-with-permit
   "Once a `permit` is obtained, execute `(apply f args)`, writing the results to `output-chan`, and returning the permit
   no matter what."
-  [permit out-chan f & args]
+  [^Closeable permit out-chan f & args]
   (log/debug (trs "Obtained {0}" permit))
   (try
     (let [f (fn []

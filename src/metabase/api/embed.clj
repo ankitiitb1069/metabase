@@ -34,8 +34,7 @@
              [i18n :refer [tru]]
              [schema :as su]]
             [schema.core :as s]
-            [toucan.db :as db]
-            [clojure.core.async :as a]))
+            [toucan.db :as db]))
 
 ;;; ------------------------------------------------- Param Checking -------------------------------------------------
 
@@ -440,5 +439,6 @@
       (Integer/parseUnsignedInt dashcard-id)
       (Integer/parseUnsignedInt card-id)
       (m/map-keys keyword query-params))))
+
 
 (api/define-routes)

@@ -45,7 +45,7 @@
        ;; ok, if the value swapped into the atom was a different channel (another thread beat us to it) then close our
        ;; newly created channel
        (when-not (= ch new-ch)
-         (.close ch))
+         (a/close! ch))
        ;; return the newly created channel
        new-ch))))
 

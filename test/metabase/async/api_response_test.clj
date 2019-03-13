@@ -5,7 +5,7 @@
             [metabase.async.api-response :as async-response]
             [metabase.test.util.async :as tu.async]
             [ring.core.protocols :as ring.protocols])
-  (:import java.io.ByteArrayOutputStream))
+  (:import [java.io ByteArrayOutputStream Closeable]))
 
 (def ^:private long-timeout-ms
   ;; 5 seconds
@@ -23,7 +23,8 @@
       (with-open [os (proxy [ByteArrayOutputStream] []
                        (close []
                          (a/close! os-closed-chan)
-                         (proxy-super close)))]
+                         (let [^Closeable this this]
+                           (proxy-super close))))]
         (let [{output-chan :body, :as response} (#'async-response/async-keepalive-response input-chan)]
           (ring.protocols/write-body-to-stream output-chan response os)
           (try
@@ -38,7 +39,7 @@
   (tu.async/wait-for-close chan long-timeout-ms)
   true)
 
-(defn- os->response [os]
+(defn- os->response [^ByteArrayOutputStream os]
   (some->
    os
    .toString
@@ -161,10 +162,9 @@
 (expect
   {:success true}
   (tu.async/with-chans [input-chan]
-    (with-response [{:keys [os output-chan]} input-chan]
-      (a/<!! (a/timeout 100))
+    (with-response [{:keys [os os-closed-chan]} input-chan]
       (a/>!! input-chan (Exception. "Broken"))
-      (wait-for-close output-chan)
+      (wait-for-close os-closed-chan)
       (os->response os))))
 
 

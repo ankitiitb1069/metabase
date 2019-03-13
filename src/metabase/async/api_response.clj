@@ -51,24 +51,25 @@
       (log/error e (trs "Unexpected error writing keepalive characters"))
       false)))
 
-(defn- write-response-chunk [chunk, ^Writer out]
+;; `chunkk` named as such to avoid conflict with `clojure.core/chunk`
+(defn- write-response-chunk [chunkk, ^Writer out]
   (cond
     ;; An error has occurred, let the user know
-    (instance? Throwable chunk)
-    (json/generate-stream (:body (mw.exceptions/api-exception-response chunk)) out)
+    (instance? Throwable chunkk)
+    (json/generate-stream (:body (mw.exceptions/api-exception-response chunkk)) out)
 
     ;; We've recevied the response, write it to the output stream and we're done
-    (seqable? chunk)
-    (json/generate-stream chunk out)
+    (seqable? chunkk)
+    (json/generate-stream chunkk out)
 
     :else
-    (log/error (trs "Unexpected output in async API response") (class chunk))))
+    (log/error (trs "Unexpected output in async API response") (class chunkk))))
 
 (defn- write-channel-to-output-stream [chan, ^Writer out]
-  (a/go-loop [chunk (a/<! chan)]
+  (a/go-loop [chunkk (a/<! chan)]
     (cond
-      (= chunk ::keepalive)
-      ;; keepalive chunk
+      (= chunkk ::keepalive)
+      ;; keepalive chunkk
       (if (write-keepalive-character out)
         (recur (a/<! chan))
         (do
@@ -76,7 +77,7 @@
           (.close out)))
 
       ;; nothing -- `chan` is prematurely closed
-      (nil? chunk)
+      (nil? chunkk)
       (.close out)
 
       ;; otherwise we got an actual response. Do this on another thread so we don't block our precious core.async
@@ -84,8 +85,8 @@
       :else
       (future
         (try
-          ;; chunk *might* be `nil` if the channel already go closed.
-          (write-response-chunk chunk out)
+          ;; chunkk *might* be `nil` if the channel already go closed.
+          (write-response-chunk chunkk out)
           (finally
             ;; should already be closed, but just to be safe
             (a/close! chan)

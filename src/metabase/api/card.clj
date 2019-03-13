@@ -14,6 +14,7 @@
             [metabase.api
              [common :as api]
              [dataset :as dataset-api]]
+            [metabase.async.util :as async.u]
             [metabase.email.messages :as messages]
             [metabase.models
              [card :as card :refer [Card]]
@@ -28,7 +29,6 @@
             [metabase.models.query.permissions :as query-perms]
             [metabase.query-processor
              [async :as qp.async]
-             [interface :as qpi]
              [util :as qputil]]
             [metabase.query-processor.middleware
              [cache :as cache]
@@ -40,9 +40,7 @@
             [schema.core :as s]
             [toucan
              [db :as db]
-             [hydrate :refer [hydrate]]]
-            [metabase.async.util :as async.u]
-            [clojure.core.async :as async])
+             [hydrate :refer [hydrate]]])
   (:import clojure.core.async.impl.channels.ManyToManyChannel
            java.util.UUID
            metabase.models.card.CardInstance))

@@ -110,7 +110,6 @@
   "Fetch a publicly-accessible Card and return query results in the specified format. Does not require auth
    credentials. Public sharing must be enabled."
   [{{:keys [uuid export-format parameters]} :params}, respond raise]
-  [uuid export-format parameters]
   {parameters    (s/maybe su/JSONString)
    export-format dataset-api/ExportFormat}
   (dataset-api/as-format-async export-format respond raise

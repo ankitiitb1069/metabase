@@ -2,8 +2,7 @@
   (:require [clojure.core.async :as a]
             [expectations :refer [expect]]
             [metabase.async.semaphore-channel :as semaphore-channel]
-            [metabase.test.util.async :as tu.async]
-            [metabase.async.util :as async.u])
+            [metabase.test.util.async :as tu.async])
   (:import java.io.Closeable))
 
 (defn- get-permits [semaphore-chan n]
@@ -25,7 +24,7 @@
 (expect
   "Permit #4"
   (tu.async/with-open-channels [semaphore-chan (semaphore-channel/semaphore-channel 3)]
-    (let [[permit-1] (get-permits semaphore-chan 3)]
+    (let [[^Closeable permit-1] (get-permits semaphore-chan 3)]
       (.close permit-1)
       (some-> (first (a/alts!! [semaphore-chan (a/timeout 100)])) str))))
 
