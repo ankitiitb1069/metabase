@@ -28,8 +28,8 @@
             (a/>! canceled-chan ::canceled)))
         ;; Either way, close whichever of the channels is still open just to be safe
         (finally
-          (a/close! in-chan)
           (a/close! out-chan)
+          (a/close! in-chan)
           (a/close! canceled-chan))))
     ;; return the canceled chan in case someone wants to listen to it
     canceled-chan))
@@ -51,8 +51,7 @@
               (log/debug (trs "Running {0} on separate thread..." f))
               (try
                 (let [result (apply f args)]
-                  (a/>!! in-chan result)
-                  #_(a/put! in-chan result))
+                  (a/put! in-chan result))
                 ;; if we catch an Exception (shouldn't happen in a QP query, but just in case), send it to `chan`. It's ok,
                 ;; our IMPL of Ring `StreamableResponseBody` will do the right thing with it.
                 (catch Throwable e

@@ -8,7 +8,6 @@
 
 (defn- get-permits [semaphore-chan n]
   (loop [acc [], n n]
-    (println @#'semaphore-channel/*permits*)
     (if-not (pos? n)
       acc
       (let [[permit] (a/alts!! [semaphore-chan (a/timeout 100)])]
@@ -31,12 +30,18 @@
       (some-> (first (a/alts!! [semaphore-chan (a/timeout 100)])) str))))
 
 ;; if we are true knuckleheads and *lose* a permit it should eventually get garbage collected and returned to the pool
+;; TODO
 (expect
   "Permit #4"
-  (tu.async/with-open-channels [semaphore-chan (semaphore-channel/semaphore-channel 3)]
-    (get-permits semaphore-chan 3)
-    (System/gc)
-    (some-> (first (a/alts!! [semaphore-chan (a/timeout 100)])) str)))
+  (with-redefs [semaphore-channel/orphaned-permit-cleanup-interval-ms 100]
+    (tu.async/with-open-channels [semaphore-chan (semaphore-channel/semaphore-channel 3)]
+      (get-permits semaphore-chan 3)
+      (loop [tries 10]
+        (System/gc)
+        (or
+         (some-> (a/alts!! [semaphore-chan (a/timeout 200)]) first str)
+         (when (pos? tries)
+           (recur (dec tries))))))))
 
 
 ;;; ------------------------------------------- do-after-receiving-permit --------------------------------------------

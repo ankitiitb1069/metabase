@@ -263,7 +263,7 @@
 
 ;; Test that we can make a card
 (let [card-name (random-name)]
-  (expect-focused ;; NOCOMMIT
+  (expect
     (merge card-defaults
            {:name                   card-name
             :collection_id          true

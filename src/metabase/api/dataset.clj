@@ -36,9 +36,9 @@
     (api/read-check Card source-card-id)
     source-card-id))
 
-(api/defendpoint-async POST "/"
+(api/defendpoint POST "/"
   "Execute a query and retrieve the results in the usual format."
-  [{{:keys [database], :as query} :body} respond raise]
+  [:as {{:keys [database], :as query} :body}]
   {database s/Int}
   ;; don't permissions check the 'database' if it's the virtual database. That database doesn't actually exist :-)
   (when-not (= database database/virtual-id)
@@ -47,7 +47,7 @@
   (let [source-card-id (query->source-card-id query)
         options        {:executed-by api/*current-user-id*, :context :ad-hoc,
                         :card-id     source-card-id,        :nested? (boolean source-card-id)}]
-    (respond (qp.async/process-query-and-save-with-max! query options))))
+    (qp.async/process-query-and-save-with-max! query options)))
 
 
 ;;; ----------------------------------- Downloading Query Results in Other Formats -----------------------------------
@@ -97,22 +97,20 @@
       (map (comp (swap-date-columns date-indexes) vec) rows)
       rows)))
 
-(defn- as-format
+(defn- as-format-response
   "Return a response containing the `results` of a query in the specified format."
   {:style/indent 1, :arglists '([export-format results])}
-  [export-format {{:keys [columns rows cols]} :data, :keys [status], :as response} respond]
+  [export-format {{:keys [columns rows cols]} :data, :keys [status], :as response}]
   (api/let-404 [export-conf (ex/export-formats export-format)]
     (if (= status :completed)
       ;; successful query, send file
-      (respond
-       {:status  200
-        :body    ((:export-fn export-conf) columns (maybe-modify-date-values cols rows))
-        :headers {"Content-Type"        (str (:content-type export-conf) "; charset=utf-8")
-                  "Content-Disposition" (str "attachment; filename=\"query_result_" (du/date->iso-8601) "." (:ext export-conf) "\"")}})
+      {:status  200
+       :body    ((:export-fn export-conf) columns (maybe-modify-date-values cols rows))
+       :headers {"Content-Type"        (str (:content-type export-conf) "; charset=utf-8")
+                 "Content-Disposition" (str "attachment; filename=\"query_result_" (du/date->iso-8601) "." (:ext export-conf) "\"")}}
       ;; failed query, send error message
-      (respond
-       {:status 500
-        :body   (:error response)}))))
+      {:status 500
+       :body   (:error response)})))
 
 (s/defn as-format-async
   "Write the results of an async query to API `respond` or `raise` functions in `export-format`. `in-chan` should be a
@@ -122,7 +120,9 @@
   (a/go
     (try
       (let [results (a/<! in-chan)]
-        (as-format export-format results respond))
+        (if (instance? Throwable results)
+          (raise results)
+          (respond (as-format-response export-format results))))
       (catch Throwable e
         (raise e))
       (finally
@@ -161,9 +161,11 @@
   (api/read-check Database database)
   ;; try calculating the average for the query as it was given to us, otherwise with the default constraints if
   ;; there's no data there. If we still can't find relevant info, just default to 0
-  {:average (or (query/average-execution-time-ms (qputil/query-hash query))
-                (query/average-execution-time-ms (qputil/query-hash (assoc query :constraints qp/default-query-constraints)))
-                0)})
+  {:average (or
+             (some (comp query/average-execution-time-ms qputil/query-hash)
+                   [query
+                    (assoc query :constraints qp/default-query-constraints)])
+             0)})
 
 
 (api/define-routes)

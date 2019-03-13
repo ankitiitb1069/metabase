@@ -149,7 +149,7 @@
 
 (defn- result-metadata-for-query [query]
   (first
-   (a/alts!
+   (a/alts!!
     [(qp.async/result-metadata-for-query-async query)
      (a/timeout 1000)])))
 

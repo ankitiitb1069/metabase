@@ -22,6 +22,7 @@
 (defmacro with-open-channels
   "Like `with-open`, but closes core.async channels at the conclusion of `body`."
   [[binding chan & more] & body]
+  {:pre [binding chan]}
   `(let [chan# ~chan
          ~binding chan#]
      (try

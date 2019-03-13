@@ -42,27 +42,35 @@
       (recur)))
 
 (defn- cleanup-orphaned-permits [{:keys [weak-refs], :as context}]
-  (log/debug (trs "Initiating clean up of orphaned permits. Total weak refs: {0}" (count @weak-refs)))
-  (doseq [[id, ^WeakReference weak-ref] @weak-refs]
-    (log/debug (trs "Check permit {0} orphaned? {1}" id (nil? (.get weak-ref))))
-    (when-not (.get weak-ref)
-      (log/warn (trs "Warning: orphaned Permit {0} recovered. Make sure to close permits when done!" id))
-      (let [[old] (swap-vals! weak-refs dissoc id)]
-        (when (get old id)
-          (new-permit! context))))))
+  #_(println "cleanup:") ; NOCOMMIT
+  (try
+    (log/debug (trs "Initiating clean up of orphaned permits. Total weak refs: {0}" (count @weak-refs)))
+    (doseq [[id, ^WeakReference weak-ref] @weak-refs]
+      (log/debug (trs "Check permit {0} orphaned? {1}" id (nil? (.get weak-ref))))
+      (when-not (.get weak-ref)
+        (log/warn (trs "Warning: orphaned Permit {0} recovered. Make sure to close permits when done!" id))
+        (let [[old] (swap-vals! weak-refs dissoc id)]
+          (when (get old id)
+            (new-permit! context)))))
+    (catch Throwable e
+      (log/error e (trs "Error cleaning up orphaned permits")))))
+
+(def ^:private orphaned-permit-cleanup-interval-ms 10000)
 
 (defn- furnish-available-permits
   "loop to take returned permits and make them available to the `out` channel consumed elsewhere, or to clean up"
   [{:keys [available-permits-out-chan permits weak-refs], :as context}]
   (a/go-loop [permit (a/poll! permits)]
-    (if permit
-      (do
-        (a/>! available-permits-out-chan permit)
-        (recur (a/poll! permits)))
-      ;; Out of permits. Cleanup time!
-      (do
-        (cleanup-orphaned-permits context)
-        (recur (a/<! permits))))))
+    (recur
+     (if permit
+       (do
+         (a/>! available-permits-out-chan permit)
+         (a/poll! permits))
+       ;; Out of permits. Cleanup time!
+       (do
+         (cleanup-orphaned-permits context)
+         ;; ok, after cleanup is done, either wait for the next permit to show up, or clean up again in 10 seconds
+         (first (a/alts! [permits (a/timeout orphaned-permit-cleanup-interval-ms)])))))))
 
 
 (defn semaphore-channel

@@ -34,7 +34,8 @@
              [i18n :refer [tru]]
              [schema :as su]]
             [schema.core :as s]
-            [toucan.db :as db]))
+            [toucan.db :as db]
+            [clojure.core.async :as a]))
 
 ;;; ------------------------------------------------- Param Checking -------------------------------------------------
 
@@ -309,7 +310,7 @@
   [{{:keys [token export-format]} :params, :keys [query-params]} respond raise]
   {export-format dataset-api/ExportFormat}
   (dataset-api/as-format-async export-format respond raise
-    (run-query-for-unsigned-token-async (eu/unsign token) query-params, :constraints nil)))
+    (run-query-for-unsigned-token-async (eu/unsign token) (m/map-keys keyword query-params), :constraints nil)))
 
 
 ;;; ----------------------------------------- /api/embed/dashboard endpoints -----------------------------------------
@@ -435,6 +436,9 @@
   [{{:keys [token export-format dashcard-id card-id]} :params, :keys [query-params]} respond raise]
   {export-format dataset-api/ExportFormat}
   (dataset-api/as-format-async export-format respond raise
-    (card-for-signed-token-async token dashcard-id card-id query-params )))
+    (card-for-signed-token-async token
+      (Integer/parseUnsignedInt dashcard-id)
+      (Integer/parseUnsignedInt card-id)
+      (m/map-keys keyword query-params))))
 
 (api/define-routes)

@@ -80,13 +80,11 @@
   {:style/indent 2}
   [card-id parameters & options]
   ;; run this query with full superuser perms
-  (let [out-chan (a/chan 1 (map transform-results))]
-    (async.u/single-value-pipe
-     (binding [api/*current-user-permissions-set*     (atom #{"/"})
-               qp/*allow-queries-with-no-executor-id* true]
-       (apply card-api/run-query-for-card-async card-id, :parameters parameters, :context :public-question, options))
-     out-chan)
-
+  (let [in-chan  (binding [api/*current-user-permissions-set*     (atom #{"/"})
+                           qp/*allow-queries-with-no-executor-id* true]
+                   (apply card-api/run-query-for-card-async card-id, :parameters parameters, :context :public-question, options))
+        out-chan (a/chan 1 (map transform-results))]
+    (async.u/single-value-pipe in-chan out-chan)
     out-chan))
 
 (defn- run-query-for-card-with-public-uuid-async
@@ -111,7 +109,7 @@
 (api/defendpoint-async GET "/card/:uuid/query/:export-format"
   "Fetch a publicly-accessible Card and return query results in the specified format. Does not require auth
    credentials. Public sharing must be enabled."
-  [{{:keys [uuid export-format]} :params, {:keys [parameters]} :query-params}, respond raise]
+  [{{:keys [uuid export-format parameters]} :params}, respond raise]
   [uuid export-format parameters]
   {parameters    (s/maybe su/JSONString)
    export-format dataset-api/ExportFormat}

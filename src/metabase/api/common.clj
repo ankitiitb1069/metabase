@@ -512,8 +512,10 @@
   normal permissions checks are usually done within the same thread that called the endpoint, meaning the middleware
   that catches Exceptions will automatically handle them."
   {:style/indent 1}
-  [raise & body]
+  ;; using 2+ args so we can catch cases where people forget to pass in `raise`
+  [raise body & more]
   `(try
-     ~@body
+     ~body
+     ~@more
      (catch Throwable e#
        (~raise e#))))

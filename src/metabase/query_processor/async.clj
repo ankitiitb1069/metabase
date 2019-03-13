@@ -91,7 +91,8 @@
   (when (= status :failed)
     (log/error (trs "Error running query to determine Card result metadata:")
                (u/pprint-to-str 'red results)))
-  (get-in results [:data :results_metadata :columns]))
+  (or (get-in results [:data :results_metadata :columns])
+      []))
 
 (s/defn result-metadata-for-query-async :- ManyToManyChannel
   "Fetch the results metadata for a `query` by running the query and seeing what the QP gives us in return.

@@ -159,7 +159,6 @@
   ;; characters if the consumer didn't get a chance to consume them, and no point writing `\n` before writing the
   ;; actual response
   (let [output-chan (a/chan (a/sliding-buffer 1))]
-    (log/debug (trs "Opened async keepalive chan") output-chan) ; NOCOMMIT
     (start-async-keepalive-loop input-chan output-chan)
     output-chan))
 

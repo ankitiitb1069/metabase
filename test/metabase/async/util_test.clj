@@ -76,25 +76,6 @@
     (a/>!! in-chan ::value)
     (first (a/alts!! [out-chan-2 (a/timeout 1000)]))))
 
-(defn- x []
-  (tu.async/with-open-channels [in-chan    (a/chan 1)
-                                out-chan-1 (a/chan 1)
-                                out-chan-2 (a/chan 1)]
-
-    (let [canceled-chan-1 (async.u/single-value-pipe in-chan out-chan-1)
-          canceled-chan-2 (async.u/single-value-pipe out-chan-1 out-chan-2)]
-      (a/>!! in-chan ::value)
-      (let [[result chan] (a/alts!! [canceled-chan-1
-                                     canceled-chan-2
-                                     out-chan-2
-                                     (a/timeout 1000)])]
-        (println "result:" result)      ; NOCOMMIT
-        (condp identical? chan
-          canceled-chan-1 'canceled-chan-1
-          canceled-chan-2 'canceled-chan-2
-          out-chan-2      'out-chan-2
-          nil             ::timeout)))))
-
 
 ;;; --------------------------------------------- do-on-separate-thread ----------------------------------------------
 
@@ -110,15 +91,20 @@
 ;; will produce an InterruptedException
 (expect
   InterruptedException
-  (tu.async/with-open-channels [finished-chan]
+  (tu.async/with-open-channels [started-chan  (a/chan 1)
+                                finished-chan (a/chan 1)]
     (let [f           (fn []
                         (try
+                          (a/>!! started-chan ::started)
                           (Thread/sleep 5000)
                           (a/>!! finished-chan ::finished)
                           (catch Throwable e
                             (a/>!! finished-chan e))))
           result-chan (async.u/do-on-separate-thread f)]
-      (a/close! result-chan)
+      ;; wait for `f` to actually start running before we kill it. Otherwise it may not get started at all
+      (a/go
+        (a/alts!! [started-chan (a/timeout 1000)])
+        (a/close! result-chan))
       (first (a/alts!! [finished-chan (a/timeout 1000)])))))
 
 ;; We should be able to combine the `single-value-pipe` and `do-on-separate-thread` and get results

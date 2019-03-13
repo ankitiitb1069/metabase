@@ -3,7 +3,7 @@
   (:require [clojure.java.jdbc :as jdbc]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [metabase.middleware.security :as middleware.security]
+            [metabase.middleware.security :as mw.security]
             [metabase.util :as u]
             [metabase.util.i18n :as ui18n :refer [trs]])
   (:import java.sql.SQLException
@@ -71,7 +71,7 @@
             :type       (class e)
             :stacktrace (u/filtered-stacktrace e)))]
     {:status  (or status-code 500)
-     :headers (middleware.security/security-headers)
+     :headers (mw.security/security-headers)
      :body    body}))
 
 (defmethod api-exception-response SQLException [e]
@@ -82,7 +82,7 @@
 
 (defmethod api-exception-response EofException [e]
   (log/info (trs "Request canceled before finishing."))
-  {:status-code 204, :body nil, :headers (middleware.security/security-headers)})
+  {:status-code 204, :body nil, :headers (mw.security/security-headers)})
 
 (defn catch-api-exceptions
   "Middleware that catches API Exceptions and returns them in our normal-style format rather than the Jetty 500

@@ -39,18 +39,20 @@
   true)
 
 (defn- os->response [os]
-  (some-> (.toString os)
-          (json/parse-string keyword)
-          ((fn [response]
-             (cond-> response
-               (:stacktrace response) (update :stacktrace (partial every? string?)))))))
+  (some->
+   os
+   .toString
+   (json/parse-string keyword)
+   ((fn [response]
+      (cond-> response
+        (:stacktrace response) (update :stacktrace (partial every? string?)))))))
 
 
 ;;; ------------------------------ Normal responses: message sent to the input channel -------------------------------
 
 ;; check that response is actually written to the output stream
 (expect
-  {:sucess true}
+  {:success true}
   (tu.async/with-chans [input-chan]
     (with-response [{:keys [os output-chan]} input-chan]
       (a/>!! input-chan {:success true})
@@ -157,9 +159,10 @@
 
 ;; If the message sent to input-chan is an Exception an appropriate response should be generated
 (expect
-  {:sucess true}
+  {:success true}
   (tu.async/with-chans [input-chan]
     (with-response [{:keys [os output-chan]} input-chan]
+      (a/<!! (a/timeout 100))
       (a/>!! input-chan (Exception. "Broken"))
       (wait-for-close output-chan)
       (os->response os))))
